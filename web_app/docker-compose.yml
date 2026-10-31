@@ -1,0 +1,68 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports: ["8090:80"]                  # dashboard: http://IP-DO-SERVIDOR
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - frontend_dist:/usr/share/nginx/html:ro
+    depends_on:
+      backend: { condition: service_started }
+      frontend: { condition: service_completed_successfully }
+
+  frontend:                           # só compila o React e entrega os ficheiros ao nginx
+    build: { context: ., target: frontend }
+    volumes: [frontend_dist:/dist]
+    restart: "no"
+
+  backend:
+    build: { context: ., target: backend }
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://atm:${POSTGRES_PASSWORD:-atm}@db:5432/atm
+      MQTT_HOST: mosquitto
+      MQTT_USER: ${MQTT_USER:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+    depends_on:
+      mosquitto: { condition: service_started }
+      db: { condition: service_healthy }
+    # sem portas publicadas: só o nginx lhe chega, pela rede interna
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    ports: ["1883:1883"]              # os ESP32 ligam aqui
+    volumes:
+      - ./mosquitto:/mosquitto/config
+      - mosquitto_data:/mosquitto/data
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: atm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-atm}
+      POSTGRES_DB: atm
+    volumes: [pg_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atm -d atm"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+
+  # Opcional: docker compose --profile sim up -d simulator
+  simulator:
+    build: { context: ., target: backend }
+    profiles: ["sim"]
+    command: python scripts/simulate.py atm-01
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_USER: ${MQTT_USER:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+    depends_on: [mosquitto, backend]
+    restart: unless-stopped
+
+volumes:
+  frontend_dist:
+  mosquitto_data:
+  pg_data:
