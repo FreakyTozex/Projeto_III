@@ -2,30 +2,32 @@ import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../api";
 
+const tick = { fill: "#5d6b75", fontSize: 12 };
+
 export default function DailyChart() {
   const { data = [] } = useQuery({ queryKey: ["stats"], queryFn: api.daily });
   const rows = data.map((d) => ({
     dia: new Date(d.day).toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" }),
-    "Notas depositadas": d.notes_in,
-    "Notas levantadas": d.notes_out,
+    "Depositadas": d.notes_in,
+    "Levantadas": d.notes_out,
   }));
 
   return (
     <section className="panel" aria-labelledby="chart-title">
-      <h2 id="chart-title">Notas por dia (últimos 14 dias)</h2>
+      <h2 id="chart-title">Notas por dia</h2>
       {rows.length === 0 ? (
-        <p className="muted">Sem transações neste período.</p>
+        <p className="muted">Ainda não há transações nos últimos 14 dias.</p>
       ) : (
         <div className="chart">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={rows} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-              <CartesianGrid stroke="#D5D9E0" vertical={false} />
-              <XAxis dataKey="dia" tickLine={false} axisLine={false} />
-              <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-              <Tooltip cursor={{ fill: "rgba(26,34,51,0.05)" }} />
-              <Legend />
-              <Bar dataKey="Notas depositadas" fill="#17795A" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="Notas levantadas" fill="#A8481C" radius={[3, 3, 0, 0]} />
+            <BarChart data={rows} margin={{ top: 8, right: 4, left: -16, bottom: 0 }} barGap={3}>
+              <CartesianGrid stroke="#d9dfe2" strokeDasharray="3 4" vertical={false} />
+              <XAxis dataKey="dia" tick={tick} tickLine={false} axisLine={false} />
+              <YAxis allowDecimals={false} tick={tick} tickLine={false} axisLine={false} />
+              <Tooltip cursor={{ fill: "rgba(22,35,43,0.05)" }} contentStyle={{ borderRadius: 8, border: "1px solid #d9dfe2" }} />
+              <Legend iconType="circle" />
+              <Bar dataKey="Depositadas" fill="#1d7a58" radius={[4, 4, 0, 0]} maxBarSize={26} />
+              <Bar dataKey="Levantadas" fill="#b4531f" radius={[4, 4, 0, 0]} maxBarSize={26} />
             </BarChart>
           </ResponsiveContainer>
         </div>
